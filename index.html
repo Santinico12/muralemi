@@ -3,45 +3,31 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>WebAR Mural (A-Frame + AR.js)</title>
-    <!-- A-Frame -->
+    <title>WebAR Mural (Android Fix)</title>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <!-- AR.js (A-Frame build) -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
     <style>
-      html, body { margin: 0; height: 100%; background: #000; }
-      #start {
-        position: fixed; inset: 0; display: grid; place-items: center;
-        background: #000; z-index: 9999;
-      }
-      #start button {
-        font: 600 16px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-        padding: 12px 18px; border: 0; border-radius: 10px; cursor: pointer;
-      }
-      .hint {
-        position: fixed; left: 0; right:0; top: 0; padding: 10px 12px;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        font-size: 14px; color:#fff; background: rgba(0,0,0,.5); text-align:center; z-index: 10;
-      }
+      html, body { margin:0; height:100%; background:#000; overflow:hidden; }
+      #start { position:fixed; inset:0; display:grid; place-items:center; background:#000; z-index:9999; }
+      #start button { font:600 16px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial; padding:12px 18px; border:0; border-radius:10px; }
+      .hint { position:fixed; left:0; right:0; top:0; padding:8px 12px; color:#fff; background:rgba(0,0,0,.5); font:14px system-ui; text-align:center; z-index:10; }
+      #log { position:fixed; left:8px; bottom:8px; right:8px; min-height:24px; color:#0f0; font:12px/1.3 ui-monospace, Menlo, Consolas, monospace; pointer-events:none; white-space:pre-wrap; }
     </style>
   </head>
   <body>
-    <div id="start">
-      <button id="btnStart">Iniciar AR</button>
-    </div>
+    <div id="start"><button id="btnStart">Iniciar AR</button></div>
+    <div class="hint">Usa <b>Chrome</b> (no webview) • Permite cámara • Muestra el marcador <b>Hiro</b></div>
+    <div id="log"></div>
 
-    <div class="hint">Apunta tu cámara al marcador <strong>Hiro</strong>. Imprime o muestra: https://raw.githubusercontent.com/AR-js-org/AR.js/master/three.js/data/images/HIRO.jpg</div>
-
-    <!-- NOTA: comenzamos con la escena pausada y la activamos tras el click -->
     <a-scene
       id="scene"
-      renderer="precision: mediump; colorManagement: true; alpha: true"
+      renderer="precision: mediump; colorManagement: true; alpha: true; antialias: true"
       vr-mode-ui="enabled: false"
       embedded="false"
       device-orientation-permission-ui="enabled: false"
       arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false; detectionMode: mono;
-            sourceWidth: 640; sourceHeight: 480; displayWidth: 640; displayHeight: 480;">
-      
+            sourceWidth: 320; sourceHeight: 240; displayWidth: 320; displayHeight: 240;">
+
       <a-entity camera></a-entity>
 
       <a-marker preset="hiro">
@@ -49,46 +35,59 @@
       </a-marker>
 
       <a-assets timeout="60000">
-        <img id="mural" src="assets/emi.png" crossorigin="anonymous" />
+        <img id="mural" src="assets/emi.png" />
       </a-assets>
     </a-scene>
 
     <script>
-      // iOS necesita a veces un gesto del usuario antes de abrir la cámara.
+      const log = (...a)=>{ const el=document.getElementById('log'); el.textContent = a.map(x=>typeof x==='object'? JSON.stringify(x): String(x)).join(' '); console.log(...a); };
+
       const btn = document.getElementById('btnStart');
       const gate = document.getElementById('start');
       const scene = document.getElementById('scene');
 
-      function startAR() {
-        // Fuerza un pequeño user-gesture antes de que AR.js inicialice el video interno.
-        // También reintenta si la cámara se "muere" por constraints.
-        const sys = scene.systems && scene.systems['arjs'];
-        // Si la escena ya está cargada, refrescamos la fuente.
-        const tryStart = () => {
-          try {
-            if (sys && sys.arToolkitSource && sys.arToolkitSource.onResizeElement) {
-              // A veces ayuda forzar resize al inicio
-              sys.arToolkitSource.onResizeElement();
-            }
-          } catch (e) {}
-        };
-        tryStart();
-        gate.style.display = 'none';
+      // Diagnóstico de permisos rápidos
+      if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({name:'camera'}).then(s=>log('perm camera:', s.state)).catch(()=>{});
       }
 
-      btn.addEventListener('click', startAR);
+      btn.addEventListener('click', async () => {
+        try {
+          // Fuerza “gesture” y prepara reintentos suaves
+          gate.style.display = 'none';
 
-      // EXTRA: si el stream se cae, intenta reintentar (algunos navegadores dan "ended").
-      document.addEventListener('visibilitychange', () => {
-        const isHidden = document.hidden;
-        if (!isHidden) {
-          const video = document.querySelector('video');
-          if (video && video.readyState < 2) {
-            // Forzar un pequeño "nudge" para relanzar la reproducción en móviles
-            video.play().catch(()=>{});
-          }
+          // Observa el <video> interno de AR.js
+          const tryHookVideo = () => {
+            const v = document.querySelector('video');
+            if (!v) { log('video: no encontrado aún'); return; }
+            v.onpause = ()=> log('video PAUSED');
+            v.onended = ()=> log('video ENDED');
+            v.onerror = (e)=> log('video ERROR', e?.message || e);
+            v.onloadedmetadata = ()=> log('video metadata', v.videoWidth+'x'+v.videoHeight);
+            // A veces ayuda play() explícito
+            v.play().catch(err=> log('video.play() err', err && err.name));
+          };
+
+          // Da un tiempo a AR.js para inicializar el stream
+          setTimeout(tryHookVideo, 800);
+
+          // Reintenta si al volver de background se pausó
+          document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+              const v = document.querySelector('video');
+              if (v && v.readyState < 2) v.play().catch(()=>{});
+            }
+          });
+
+          log('AR iniciado: toca el marcador Hiro');
+        } catch (err) {
+          log('ERROR al iniciar:', err && (err.name || err.message));
         }
       });
+
+      // Extra: muestra errores de getUserMedia (si AR.js los propaga)
+      window.addEventListener('error', e => log('window error:', e.message));
+      window.addEventListener('unhandledrejection', e => log('promise rejection:', e.reason && (e.reason.name || e.reason.message || e.reason)));
     </script>
   </body>
 </html>
