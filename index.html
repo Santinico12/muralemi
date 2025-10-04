@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>WebAR Mural (A-Frame + AR.js)</title>
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <!-- AR.js (A-Frame build) -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+    <style>
+      body, html { margin: 0; padding: 0; overflow: hidden; background: #000; }
+      .hint {
+        position: fixed; left: 0; right:0; top: 0; padding: 10px 12px;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        font-size: 14px; color:#fff; background: rgba(0,0,0,.5); text-align:center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="hint">Apunta tu cámara al marcador <strong>Hiro</strong>. Imprime el marcador o muéstralo en otra pantalla: https://raw.githubusercontent.com/AR-js-org/AR.js/master/three.js/data/images/HIRO.jpg</div>
+
+    <a-scene
+      vr-mode-ui="enabled: false"
+      renderer="precision: mediump; colorManagement: true"
+      embedded
+      arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3">
+      
+      <!-- Cámara AR -->
+      <a-entity camera></a-entity>
+
+      <!-- Marcador Hiro -->
+      <a-marker preset="hiro">
+        <!-- Plano con la textura del mural -->
+        <a-image src="#mural" rotation="-90 0 0" position="0 0 0" width="1.6" height="0.9"></a-image>
+      </a-marker>
+
+      <!-- Activo AR.js -->
+      <a-entity arjs-anchor></a-entity>
+
+      <!-- Assets -->
+      <a-assets timeout="60000">
+        <img id="mural" src="assets/emi.png" crossorigin="anonymous" />
+      </a-assets>
+    </a-scene>
+  </body>
+</html>
