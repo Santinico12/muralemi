@@ -9,39 +9,86 @@
     <!-- AR.js (A-Frame build) -->
     <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
     <style>
-      body, html { margin: 0; padding: 0; overflow: hidden; background: #000; }
+      html, body { margin: 0; height: 100%; background: #000; }
+      #start {
+        position: fixed; inset: 0; display: grid; place-items: center;
+        background: #000; z-index: 9999;
+      }
+      #start button {
+        font: 600 16px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        padding: 12px 18px; border: 0; border-radius: 10px; cursor: pointer;
+      }
       .hint {
         position: fixed; left: 0; right:0; top: 0; padding: 10px 12px;
         font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        font-size: 14px; color:#fff; background: rgba(0,0,0,.5); text-align:center;
+        font-size: 14px; color:#fff; background: rgba(0,0,0,.5); text-align:center; z-index: 10;
       }
     </style>
   </head>
   <body>
-    <div class="hint">Apunta tu cámara al marcador <strong>Hiro</strong>. Imprime el marcador o muéstralo en otra pantalla: https://raw.githubusercontent.com/AR-js-org/AR.js/master/three.js/data/images/HIRO.jpg</div>
+    <div id="start">
+      <button id="btnStart">Iniciar AR</button>
+    </div>
 
+    <div class="hint">Apunta tu cámara al marcador <strong>Hiro</strong>. Imprime o muestra: https://raw.githubusercontent.com/AR-js-org/AR.js/master/three.js/data/images/HIRO.jpg</div>
+
+    <!-- NOTA: comenzamos con la escena pausada y la activamos tras el click -->
     <a-scene
+      id="scene"
+      renderer="precision: mediump; colorManagement: true; alpha: true"
       vr-mode-ui="enabled: false"
-      renderer="precision: mediump; colorManagement: true"
-      embedded
-      arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3">
+      embedded="false"
+      device-orientation-permission-ui="enabled: false"
+      arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false; detectionMode: mono;
+            sourceWidth: 640; sourceHeight: 480; displayWidth: 640; displayHeight: 480;">
       
-      <!-- Cámara AR -->
       <a-entity camera></a-entity>
 
-      <!-- Marcador Hiro -->
       <a-marker preset="hiro">
-        <!-- Plano con la textura del mural -->
         <a-image src="#mural" rotation="-90 0 0" position="0 0 0" width="1.6" height="0.9"></a-image>
       </a-marker>
 
-      <!-- Activo AR.js -->
-      <a-entity arjs-anchor></a-entity>
-
-      <!-- Assets -->
       <a-assets timeout="60000">
-        <img id="mural" src="emi.png" crossorigin="anonymous" />
+        <img id="mural" src="assets/emi.png" crossorigin="anonymous" />
       </a-assets>
     </a-scene>
+
+    <script>
+      // iOS necesita a veces un gesto del usuario antes de abrir la cámara.
+      const btn = document.getElementById('btnStart');
+      const gate = document.getElementById('start');
+      const scene = document.getElementById('scene');
+
+      function startAR() {
+        // Fuerza un pequeño user-gesture antes de que AR.js inicialice el video interno.
+        // También reintenta si la cámara se "muere" por constraints.
+        const sys = scene.systems && scene.systems['arjs'];
+        // Si la escena ya está cargada, refrescamos la fuente.
+        const tryStart = () => {
+          try {
+            if (sys && sys.arToolkitSource && sys.arToolkitSource.onResizeElement) {
+              // A veces ayuda forzar resize al inicio
+              sys.arToolkitSource.onResizeElement();
+            }
+          } catch (e) {}
+        };
+        tryStart();
+        gate.style.display = 'none';
+      }
+
+      btn.addEventListener('click', startAR);
+
+      // EXTRA: si el stream se cae, intenta reintentar (algunos navegadores dan "ended").
+      document.addEventListener('visibilitychange', () => {
+        const isHidden = document.hidden;
+        if (!isHidden) {
+          const video = document.querySelector('video');
+          if (video && video.readyState < 2) {
+            // Forzar un pequeño "nudge" para relanzar la reproducción en móviles
+            video.play().catch(()=>{});
+          }
+        }
+      });
+    </script>
   </body>
 </html>
