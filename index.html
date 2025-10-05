@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>WebAR Mural (Android Fix)</title>
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
     <style>
       html, body { margin:0; height:100%; background:#000; overflow:hidden; }
       #start { position:fixed; inset:0; display:grid; place-items:center; background:#000; z-index:9999; }
@@ -22,11 +22,10 @@
     <a-scene
       id="scene"
       renderer="precision: mediump; colorManagement: true; alpha: true; antialias: true"
-      vr-mode-ui="enabled: false"
       embedded="false"
       device-orientation-permission-ui="enabled: false"
-      arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false; detectionMode: mono;
-            sourceWidth: 320; sourceHeight: 240; displayWidth: 320; displayHeight: 240;">
+      arjs="sourceType: webcam; detectionMode: mono; sourceWidth: 640; sourceHeight: 480; displayWidth: 640; displayHeight: 480;"
+      vr-mode-ui="enabled: false">
 
       <a-entity camera></a-entity>
 
