@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>WebAR (Android Fix)</title>
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.7/aframe/build/aframe-ar.min.js"></script>
   <style>
     html,body { margin:0; height:100%; background:#000; overflow:hidden; }
     #start { position:fixed; inset:0; display:grid; place-items:center; background:#000; z-index:9999; }
-    #start button { font:600 16px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial; padding:12px 18px; border:0; border-radius:12px; }
+    #start button { font:600 16px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial; padding:12px 18px; border:0; border-radius:12px; }
     .hint { position:fixed; left:0; right:0; top:0; padding:8px 12px; color:#fff; background:rgba(0,0,0,.45); font:14px system-ui; text-align:center; z-index:10; }
-    /* Asegura que el video/canvas estén siempre visibles y a pantalla completa */
+    /* Garantiza que el video/canvas estén visibles a pantalla completa */
     video, canvas, .a-canvas { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important; }
   </style>
 </head>
@@ -20,14 +20,17 @@
   <div class="hint">Abre en <b>Chrome</b>, permite la cámara y apunta al marcador <b>Hiro</b>.</div>
 
   <a-scene id="scene"
-           arjs="sourceType: webcam; detectionMode: mono; sourceWidth: 640; sourceHeight: 480; displayWidth: 640; displayHeight: 480;"
+           arjs="sourceType: webcam; detectionMode: mono; sourceWidth: 320; sourceHeight: 240; displayWidth: 320; displayHeight: 240;"
            vr-mode-ui="enabled: false">
     <a-marker preset="hiro">
       <a-image src="#mural" rotation="-90 0 0" position="0 0 0" width="1.6" height="0.9"></a-image>
     </a-marker>
+
     <a-assets timeout="60000">
+      <!-- usa ruta relativa que ya tienes publicada en raíz -->
       <img id="mural" src="emi.png">
     </a-assets>
+
     <a-entity camera></a-entity>
   </a-scene>
 
@@ -35,38 +38,34 @@
     const gate = document.getElementById('start');
     const btn  = document.getElementById('btnStart');
 
-    // Reaplica atributos "mágicos" cada vez que aparezca/reemplace el <video>
     const ensureVideoPlayable = () => {
       const v = document.querySelector('video');
       if (!v) return;
-      v.setAttribute('autoplay', '');
-      v.setAttribute('muted', '');
-      v.setAttribute('playsinline', '');
-      v.muted = true;
-      v.playsInline = true;
-      v.autoplay = true;
-      // reintentos suaves
-      const tryPlay = () => v.play().catch(()=>{ setTimeout(tryPlay, 500); });
+      v.setAttribute('autoplay',''); v.autoplay = true;
+      v.setAttribute('muted','');    v.muted = true;
+      v.setAttribute('playsinline',''); v.playsInline = true;
+
+      // Reintentos suaves para evitar que quede en pausa
+      const tryPlay = () => v.play().catch(()=>setTimeout(tryPlay, 400));
       tryPlay();
-      // Diagnóstico básico
+
+      // Logs útiles en consola por si vuelve a pararse
       v.onpause = ()=> console.log('[AR] video PAUSED');
       v.onended = ()=> console.log('[AR] video ENDED');
-      v.onerror = e => console.log('[AR] video ERROR', e?.message||e);
       v.onloadedmetadata = ()=> console.log('[AR] video meta', v.videoWidth+'x'+v.videoHeight);
+      v.onerror = e => console.log('[AR] video ERROR', e?.message||e);
     };
 
+    // Reaplica atributos cuando AR.js re-crea el <video>
     new MutationObserver(ensureVideoPlayable).observe(document.body, {childList:true, subtree:true});
 
     btn.addEventListener('click', () => {
       gate.style.display = 'none';
-      // da tiempo a AR.js para crear el <video>
       setTimeout(ensureVideoPlayable, 600);
     });
 
-    // Si vuelves de background y quedó pausado, relanza
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) ensureVideoPlayable();
-    });
+    // Al volver de background, reintenta play
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) ensureVideoPlayable(); });
   </script>
 </body>
 </html>
