@@ -1,83 +1,104 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <title>WebAR (Android Fix v2)</title>
-  <!-- A-Frame emparejado con AR.js 3.4.7 -->
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-  <!-- AR.js build para A-Frame -->
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.7/aframe/build/aframe-ar.min.js"></script>
-  <style>
-    html,body { margin:0; height:100%; background:#000; overflow:hidden; }
-    #start { position:fixed; inset:0; display:grid; place-items:center; background:#000; z-index:9999; }
-    #start button { font:600 16px/1 system-ui,-apple-system,Segoe UI,Roboto,Arial; padding:12px 18px; border:0; border-radius:12px; }
-    .hint { position:fixed; left:0; right:0; top:0; padding:8px 12px; color:#fff; background:rgba(0,0,0,.45); font:14px system-ui; text-align:center; z-index:10; }
-    /* Asegura que video/canvas estén siempre a pantalla completa y visibles */
-    video, canvas, .a-canvas { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mural AR</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.3.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        #instrucciones {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-family: Arial, sans-serif;
+            z-index: 1000;
+            text-align: center;
+            max-width: 90%;
+        }
+        #instrucciones h3 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+        #instrucciones p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        #instrucciones a {
+            color: #4CAF50;
+            text-decoration: none;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-  <div id="start"><button id="btnStart">Iniciar AR</button></div>
-  <div class="hint">Abre en <b>Chrome</b>, permite la cámara y apunta al marcador <b>Hiro</b>.</div>
+    <div id="instrucciones">
+        <h3>📱 Mural en Realidad Aumentada</h3>
+        <p>Apunta la cámara al marcador Hiro</p>
+        <p><a href="https://github.com/AR-js-org/AR.js/blob/master/data/images/hiro.png" target="_blank">Descargar marcador aquí</a></p>
+    </div>
 
-  <a-scene id="scene"
-    renderer="precision: mediump; antialias: false; colorManagement: true; alpha: true; powerPreference: low-power"
-    vr-mode-ui="enabled: false"
-    arjs="sourceType: webcam; detectionMode: mono; maxDetectionRate: 30;
-          sourceWidth: 320; sourceHeight: 240; displayWidth: 320; displayHeight: 240;">
-    <a-marker preset="hiro">
-      <a-image src="#mural" rotation="-90 0 0" position="0 0 0" width="1.6" height="0.9"></a-image>
-    </a-marker>
+    <a-scene
+        embedded
+        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+        vr-mode-ui="enabled: false">
+        
+        <!-- Cámara -->
+        <a-entity camera></a-entity>
 
-    <a-assets timeout="60000">
-      <!-- ajusta la ruta según dónde tengas tu imagen -->
-      <img id="mural" src="emi.png">
-    </a-assets>
+        <!-- Marcador con el mural -->
+        <a-marker preset="hiro">
+            <!-- Plano con tu imagen de mural -->
+            <a-plane 
+                src="mural.png" 
+                position="0 0 0" 
+                rotation="-90 0 0" 
+                width="2" 
+                height="2"
+                material="transparent: true; opacity: 1">
+            </a-plane>
+            
+            <!-- Marco decorativo opcional -->
+            <a-box 
+                position="0 -0.05 0" 
+                rotation="-90 0 0" 
+                width="2.1" 
+                height="2.1" 
+                depth="0.1"
+                color="#8B4513">
+            </a-box>
+        </a-marker>
+    </a-scene>
 
-    <a-entity camera></a-entity>
-  </a-scene>
+    <script>
+        // Ocultar instrucciones después de 8 segundos
+        setTimeout(() => {
+            const instrucciones = document.getElementById('instrucciones');
+            instrucciones.style.transition = 'opacity 1s';
+            instrucciones.style.opacity = '0';
+            setTimeout(() => {
+                instrucciones.style.display = 'none';
+            }, 1000);
+        }, 8000);
 
-  <script>
-    const gate = document.getElementById('start');
-    const btn  = document.getElementById('btnStart');
-
-    // Reaplica atributos críticos y reintenta play() si el video se pausa o se reemplaza
-    const ensureVideoPlayable = () => {
-      const v = document.querySelector('video');
-      if (!v) return;
-      v.setAttribute('autoplay',''); v.autoplay = true;
-      v.setAttribute('muted','');    v.muted = true;
-      v.setAttribute('playsinline',''); v.playsInline = true;
-      const tryPlay = () => v.play().catch(()=>setTimeout(tryPlay, 400));
-      tryPlay();
-
-      // Logs útiles de diagnóstico
-      v.onpause = ()=> console.log('[AR] video PAUSED');
-      v.onended = ()=> console.log('[AR] video ENDED');
-      v.onloadedmetadata = ()=> console.log('[AR] video meta', v.videoWidth+'x'+v.videoHeight);
-      v.onerror = e => console.log('[AR] video ERROR', e?.message||e);
-    };
-
-    // Observa el DOM porque AR.js puede recrear el <video> interno
-    new MutationObserver(ensureVideoPlayable).observe(document.body, {childList:true, subtree:true});
-
-    // Iniciar tras gesto del usuario
-    btn.addEventListener('click', () => {
-      gate.style.display = 'none';
-      setTimeout(ensureVideoPlayable, 600);
-    });
-
-    // Si vuelve del background y quedó pausado, reintenta
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) ensureVideoPlayable(); });
-
-    // Si se pierde el contexto WebGL, refresca la escena (previene “cuelgues” en algunos Android)
-    const sceneEl = document.getElementById('scene');
-    sceneEl.addEventListener('webglcontextlost', (e) => {
-      console.warn('[AR] WebGL context lost, trying to recover...');
-      e.preventDefault();
-      setTimeout(() => { location.reload(); }, 300);
-    }, false);
-  </script>
+        // Verificar si la cámara está disponible
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                console.log('Cámara accesible');
+                stream.getTracks().forEach(track => track.stop());
+            })
+            .catch(err => {
+                alert('Error al acceder a la cámara: ' + err.message + '\nAsegúrate de dar permisos de cámara.');
+            });
+    </script>
 </body>
 </html>
