@@ -1,67 +1,72 @@
 <!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>WebAR Mural (A-Frame 1.6.0 + AR.js 3.4.7)</title>
-    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-    <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
-    <style>
-      html, body { margin:0; height:100%; background:#000; overflow:hidden; }
-      #start { position:fixed; inset:0; display:grid; place-items:center; background:#000; z-index:9999; }
-      #start button { font:600 16px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial; padding:12px 18px; border:0; border-radius:10px; }
-      .hint { position:fixed; left:0; right:0; top:0; padding:8px 12px; color:#fff; background:rgba(0,0,0,.5); font:14px system-ui; text-align:center; z-index:10; }
-    </style>
-  </head>
-  <body>
-    <div id="start"><button id="btnStart">Iniciar AR</button></div>
-    <div class="hint">Apunta al marcador <b>Hiro</b>. Usa Chrome (no in-app browser) y permite la cámara.</div>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <title>WebAR (Android Fix)</title>
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
+  <style>
+    html,body { margin:0; height:100%; background:#000; overflow:hidden; }
+    #start { position:fixed; inset:0; display:grid; place-items:center; background:#000; z-index:9999; }
+    #start button { font:600 16px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial; padding:12px 18px; border:0; border-radius:12px; }
+    .hint { position:fixed; left:0; right:0; top:0; padding:8px 12px; color:#fff; background:rgba(0,0,0,.45); font:14px system-ui; text-align:center; z-index:10; }
+    /* Asegura que el video/canvas estén siempre visibles y a pantalla completa */
+    video, canvas, .a-canvas { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important; }
+  </style>
+</head>
+<body>
+  <div id="start"><button id="btnStart">Iniciar AR</button></div>
+  <div class="hint">Abre en <b>Chrome</b>, permite la cámara y apunta al marcador <b>Hiro</b>.</div>
 
-    <!-- NOTA: configuración mínima y estable para Android -->
-    <a-scene id="scene" embedded arjs="sourceType: webcam; detectionMode: mono; sourceWidth: 640; sourceHeight: 480; displayWidth: 640; displayHeight: 480;" vr-mode-ui="enabled: false">
-      <a-marker preset="hiro">
-        <a-image src="#mural" rotation="-90 0 0" position="0 0 0" width="1.6" height="0.9"></a-image>
-      </a-marker>
+  <a-scene id="scene"
+           arjs="sourceType: webcam; detectionMode: mono; sourceWidth: 640; sourceHeight: 480; displayWidth: 640; displayHeight: 480;"
+           vr-mode-ui="enabled: false">
+    <a-marker preset="hiro">
+      <a-image src="#mural" rotation="-90 0 0" position="0 0 0" width="1.6" height="0.9"></a-image>
+    </a-marker>
+    <a-assets timeout="60000">
+      <img id="mural" src="assets/emi.png">
+    </a-assets>
+    <a-entity camera></a-entity>
+  </a-scene>
 
-      <a-assets timeout="60000">
-        <img id="mural" src="emi.png" />
-      </a-assets>
+  <script>
+    const gate = document.getElementById('start');
+    const btn  = document.getElementById('btnStart');
 
-      <a-entity camera></a-entity>
-    </a-scene>
+    // Reaplica atributos "mágicos" cada vez que aparezca/reemplace el <video>
+    const ensureVideoPlayable = () => {
+      const v = document.querySelector('video');
+      if (!v) return;
+      v.setAttribute('autoplay', '');
+      v.setAttribute('muted', '');
+      v.setAttribute('playsinline', '');
+      v.muted = true;
+      v.playsInline = true;
+      v.autoplay = true;
+      // reintentos suaves
+      const tryPlay = () => v.play().catch(()=>{ setTimeout(tryPlay, 500); });
+      tryPlay();
+      // Diagnóstico básico
+      v.onpause = ()=> console.log('[AR] video PAUSED');
+      v.onended = ()=> console.log('[AR] video ENDED');
+      v.onerror = e => console.log('[AR] video ERROR', e?.message||e);
+      v.onloadedmetadata = ()=> console.log('[AR] video meta', v.videoWidth+'x'+v.videoHeight);
+    };
 
-    <script>
-      // Inicia tras gesto del usuario (mejora estabilidad en móviles)
-      const gate = document.getElementById('start');
-      const btn = document.getElementById('btnStart');
-      const scene = document.getElementById('scene');
-      const log = (...a)=>console.log('[AR]', ...a);
+    new MutationObserver(ensureVideoPlayable).observe(document.body, {childList:true, subtree:true});
 
-      btn.addEventListener('click', () => {
-        gate.style.display = 'none';
-        // Pequeño "nudge" al <video> cuando esté disponible
-        setTimeout(() => {
-          const v = document.querySelector('video');
-          if (v) {
-            v.muted = true;
-            v.playsInline = true;
-            v.play().catch(e=>log('video.play() err', e && (e.name||e.message)));
-            // Diagnóstico
-            v.onpause = ()=> log('video PAUSED');
-            v.onended = ()=> log('video ENDED');
-            v.onloadedmetadata = ()=> log('video meta', v.videoWidth+'x'+v.videoHeight);
-          }
-        }, 800);
-      });
+    btn.addEventListener('click', () => {
+      gate.style.display = 'none';
+      // da tiempo a AR.js para crear el <video>
+      setTimeout(ensureVideoPlayable, 600);
+    });
 
-      // Reanuda si al volver de background queda pausado
-      document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) {
-          const v = document.querySelector('video');
-          if (v && v.readyState < 2) v.play().catch(()=>{});
-        }
-      });
-    </script>
-  </body>
+    // Si vuelves de background y quedó pausado, relanza
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) ensureVideoPlayable();
+    });
+  </script>
+</body>
 </html>
-
