@@ -3,90 +3,67 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>WebAR Mural (Android Fix)</title>
+    <title>WebAR Mural (A-Frame 1.6.0 + AR.js 3.4.7)</title>
+    <!-- A-Frame (versión recomendada por AR.js 3.4.7) -->
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <!-- AR.js A-Frame build 3.4.7 (marker + location) -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
     <style>
       html, body { margin:0; height:100%; background:#000; overflow:hidden; }
       #start { position:fixed; inset:0; display:grid; place-items:center; background:#000; z-index:9999; }
       #start button { font:600 16px/1 system-ui, -apple-system, Segoe UI, Roboto, Arial; padding:12px 18px; border:0; border-radius:10px; }
       .hint { position:fixed; left:0; right:0; top:0; padding:8px 12px; color:#fff; background:rgba(0,0,0,.5); font:14px system-ui; text-align:center; z-index:10; }
-      #log { position:fixed; left:8px; bottom:8px; right:8px; min-height:24px; color:#0f0; font:12px/1.3 ui-monospace, Menlo, Consolas, monospace; pointer-events:none; white-space:pre-wrap; }
     </style>
   </head>
   <body>
     <div id="start"><button id="btnStart">Iniciar AR</button></div>
-    <div class="hint">Usa <b>Chrome</b> (no webview) • Permite cámara • Muestra el marcador <b>Hiro</b></div>
-    <div id="log"></div>
+    <div class="hint">Apunta al marcador <b>Hiro</b>. Usa Chrome (no in-app browser) y permite la cámara.</div>
 
-    <a-scene
-      id="scene"
-      renderer="precision: mediump; colorManagement: true; alpha: true; antialias: true"
-      embedded="false"
-      device-orientation-permission-ui="enabled: false"
-      arjs="sourceType: webcam; detectionMode: mono; sourceWidth: 640; sourceHeight: 480; displayWidth: 640; displayHeight: 480;"
-      vr-mode-ui="enabled: false">
-
-      <a-entity camera></a-entity>
-
+    <!-- NOTA: configuración mínima y estable para Android -->
+    <a-scene id="scene" embedded arjs="sourceType: webcam; detectionMode: mono; sourceWidth: 640; sourceHeight: 480; displayWidth: 640; displayHeight: 480;" vr-mode-ui="enabled: false">
       <a-marker preset="hiro">
         <a-image src="#mural" rotation="-90 0 0" position="0 0 0" width="1.6" height="0.9"></a-image>
       </a-marker>
 
       <a-assets timeout="60000">
-        <img id="mural" src="emi.png" />
+        <img id="mural" src="assets/emi.png" />
       </a-assets>
+
+      <a-entity camera></a-entity>
     </a-scene>
 
     <script>
-      const log = (...a)=>{ const el=document.getElementById('log'); el.textContent = a.map(x=>typeof x==='object'? JSON.stringify(x): String(x)).join(' '); console.log(...a); };
-
-      const btn = document.getElementById('btnStart');
+      // Inicia tras gesto del usuario (mejora estabilidad en móviles)
       const gate = document.getElementById('start');
+      const btn = document.getElementById('btnStart');
       const scene = document.getElementById('scene');
+      const log = (...a)=>console.log('[AR]', ...a);
 
-      // Diagnóstico de permisos rápidos
-      if (navigator.permissions && navigator.permissions.query) {
-        navigator.permissions.query({name:'camera'}).then(s=>log('perm camera:', s.state)).catch(()=>{});
-      }
-
-      btn.addEventListener('click', async () => {
-        try {
-          // Fuerza “gesture” y prepara reintentos suaves
-          gate.style.display = 'none';
-
-          // Observa el <video> interno de AR.js
-          const tryHookVideo = () => {
-            const v = document.querySelector('video');
-            if (!v) { log('video: no encontrado aún'); return; }
+      btn.addEventListener('click', () => {
+        gate.style.display = 'none';
+        // Pequeño "nudge" al <video> cuando esté disponible
+        setTimeout(() => {
+          const v = document.querySelector('video');
+          if (v) {
+            v.muted = true;
+            v.playsInline = true;
+            v.play().catch(e=>log('video.play() err', e && (e.name||e.message)));
+            // Diagnóstico
             v.onpause = ()=> log('video PAUSED');
             v.onended = ()=> log('video ENDED');
-            v.onerror = (e)=> log('video ERROR', e?.message || e);
-            v.onloadedmetadata = ()=> log('video metadata', v.videoWidth+'x'+v.videoHeight);
-            // A veces ayuda play() explícito
-            v.play().catch(err=> log('video.play() err', err && err.name));
-          };
-
-          // Da un tiempo a AR.js para inicializar el stream
-          setTimeout(tryHookVideo, 800);
-
-          // Reintenta si al volver de background se pausó
-          document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-              const v = document.querySelector('video');
-              if (v && v.readyState < 2) v.play().catch(()=>{});
-            }
-          });
-
-          log('AR iniciado: toca el marcador Hiro');
-        } catch (err) {
-          log('ERROR al iniciar:', err && (err.name || err.message));
-        }
+            v.onloadedmetadata = ()=> log('video meta', v.videoWidth+'x'+v.videoHeight);
+          }
+        }, 800);
       });
 
-      // Extra: muestra errores de getUserMedia (si AR.js los propaga)
-      window.addEventListener('error', e => log('window error:', e.message));
-      window.addEventListener('unhandledrejection', e => log('promise rejection:', e.reason && (e.reason.name || e.reason.message || e.reason)));
+      // Reanuda si al volver de background queda pausado
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          const v = document.querySelector('video');
+          if (v && v.readyState < 2) v.play().catch(()=>{});
+        }
+      });
     </script>
   </body>
 </html>
+
