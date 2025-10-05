@@ -1,0 +1,15 @@
+<!doctype html>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>getUserMedia test</title>
+<style>html,body{margin:0;height:100%;background:#000;display:grid;place-items:center} video{width:100vw;height:100vh;object-fit:cover}</style>
+<video id="v" autoplay muted playsinline></video>
+<script>
+(async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({video:{width:{ideal:320},height:{ideal:240},facingMode:{ideal:'environment'}}, audio:false});
+    const v = document.getElementById('v'); v.srcObject = stream;
+    v.onpause=()=>console.log('PAUSED'); v.onended=()=>console.log('ENDED'); v.onloadedmetadata=()=>console.log('meta',v.videoWidth+'x'+v.videoHeight);
+  } catch(e){ console.error('gUM error', e.name, e.message); }
+})();
+</script>
